@@ -5,7 +5,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, UserEditForm, LoginForm, MessageForm
-from models import db, connect_db, User, Message
+from models import db, connect_db, User, Message, Like
 
 CURR_USER_KEY = "curr_user"
 
@@ -209,6 +209,41 @@ def stop_following(follow_id):
 
     return redirect(f"/users/{g.user.id}/following")
 
+@app.route('/users/<int:user_id>/likes')
+def show_likes(user_id):
+    """Shows list of likes for this user"""
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+        
+    liked_ids = [liked.id for liked in g.user.likes]
+    return render_template("users/likes.html", messages=g.user.likes, user=g.user)
+
+
+@app.route('/users/add_like/<int:message_id>', methods=["POST"])
+def messages_add_like(message_id):
+    """Add a like to a message"""
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    message = Message.query.get_or_404(message_id)
+    user_liked_ids = [liked.id for liked in g.user.likes]
+
+    if message.id not in user_liked_ids:
+        like = Like(user_id=g.user.id, message_id=message_id)
+        db.session.add(like)
+        db.session.commit()
+    else:
+        like = Like.query.filter(db.and_(Like.user_id==g.user.id, Like.message_id == message.id)).first()
+        db.session.delete(like)
+        db.session.commit()
+
+    return redirect('/')
+
+
 
 @app.route('/users/profile', methods=["GET", "POST"])
 def profile():
@@ -222,7 +257,11 @@ def profile():
 
     if form.validate_on_submit():
         if User.authenticate(username=g.user.username, password=form.password.data):
-            form.populate_obj(g.user)
+            g.user.username = form.username.data
+            g.user.email = form.email.data
+            g.user.image_url = form.image_url.data
+            g.user.header_image_url = form.header_image_url.data
+            g.user.bio = form.bio.data
             db.session.commit()
             flash("Successfully updated your profile", "success")
             return redirect(f"/users/{g.user.id}")
@@ -319,8 +358,9 @@ def homepage():
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
+        liked_ids = [liked.id for liked in g.user.likes]
 
-        return render_template('home.html', messages=messages)
+        return render_template('home.html', messages=messages, likes=liked_ids)
 
     else:
         return render_template('home-anon.html')

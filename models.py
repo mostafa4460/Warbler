@@ -27,7 +27,7 @@ class Follows(db.Model):
     )
 
 
-class Likes(db.Model):
+class Like(db.Model):
     """Mapping user likes to warbles."""
 
     __tablename__ = 'likes' 
@@ -47,6 +47,8 @@ class Likes(db.Model):
         db.ForeignKey('messages.id', ondelete='cascade'),
         unique=True
     )
+
+    message = db.relationship("Message", backref="likes")
 
 
 class User(db.Model):
