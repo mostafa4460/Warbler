@@ -15,7 +15,7 @@
           {{ field(placeholder=field.label.text, class="form-control") }}
         {% endfor %}
 
-        <p>To confirm changes, enter your password:</p>
+        <p class="text-danger">To confirm changes, enter your password:</p>
         {% if form.password.errors %}
           {% for error in form.password.errors %}
             <span class="text-danger">
